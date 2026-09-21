@@ -61,7 +61,8 @@ def media_url(filename):
     repo = os.environ["GH_REPO"].strip()
     branch = os.environ.get("GH_BRANCH", "main").strip()
     name = urllib.parse.quote(filename.strip())
-    return f"https://cdn.jsdelivr.net/gh/{repo}@{branch}/media/{name}"
+    path = name if "/" in name else f"media/{name}"
+    return f"https://cdn.jsdelivr.net/gh/{repo}@{branch}/{path}"
 
 
 def wait_ready(check_fn, label, timeout=600):
