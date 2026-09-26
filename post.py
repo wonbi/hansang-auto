@@ -127,10 +127,30 @@ def post_threads(kind, files, caption):
 
     wait_ready(lambda: threads_status(cid), "쓰레드 컨테이너")
 
+    # 컨테이너가 FINISHED 를 보고해도 곧바로 발행하면
+    # "Media Not Found" (code 24 / subcode 4279009) 가 난다.
+    # 캐러셀은 조립에 시간이 더 걸리므로 잠깐 기다렸다가 올리고,
+    # 그래도 같은 오류면 간격을 두고 다시 시도한다.
+    if kind == "carousel":
+        log("  캐러셀 조립 대기 30초")
+        time.sleep(30)
+
     uid = os.environ["THREADS_USER_ID"]
-    r = http(f"{THREADS_API}/{uid}/threads_publish",
-             {"creation_id": cid, "access_token": os.environ["THREADS_TOKEN"]}, "POST")
-    return r["id"]
+    last = None
+    for attempt in range(1, 7):
+        try:
+            r = http(f"{THREADS_API}/{uid}/threads_publish",
+                     {"creation_id": cid, "access_token": os.environ["THREADS_TOKEN"]}, "POST")
+            return r["id"]
+        except RuntimeError as e:
+            last = e
+            if "4279009" not in str(e) and "Media Not Found" not in str(e):
+                raise
+            if attempt == 6:
+                break
+            log(f"  컨테이너 준비 중 — 20초 뒤 재시도 ({attempt}/5)")
+            time.sleep(20)
+    raise last
 
 
 # ---------------------------------------------------------------- Instagram
@@ -252,7 +272,8 @@ def publish_row(rows, i):
         except Exception as e:
             ok = False
             log(f"  ❌ {t} 실패: {e}")
-            results.append(f"{t}:ERROR")
+            msg = " ".join(str(e).split())[:300].replace(",", ";")
+            results.append(f"{t}:ERROR {msg}")
     rows[i]["status"] = "done" if ok else "error"
     rows[i]["result"] = " | ".join(results)
     return ok
