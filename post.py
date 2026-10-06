@@ -99,6 +99,12 @@ def post_threads(kind, files, caption):
     if kind == "text":
         cid = threads_container({"media_type": "TEXT", "text": caption})
 
+    elif kind == "reply":
+        # files 칸에 원글 ID 를 적는다. 발행된 글은 본문 수정이 안 되므로
+        # 가격 정정이나 링크 교체는 답글로 붙인다.
+        cid = threads_container({"media_type": "TEXT", "text": caption,
+                                 "reply_to_id": files[0]})
+
     elif kind == "image":
         cid = threads_container({"media_type": "IMAGE",
                                  "image_url": media_url(files[0]),
